@@ -14,7 +14,7 @@ Policy-synthesis + behavioral CVE-replay + canary-tracking library for MCP serve
 
 Use this library if you want:
 - A typed, validated way to describe what an MCP subprocess is allowed to read, write, spawn, and talk to.
-- A reproducible scanner for known RCE-vulnerability classes in subprocess commands (MCP-SDK-RCE-2026-04-22, CVE-2026-27124, Nginx-MCP RCE 9.8) plus 5 shell-injection + 3 fullwidth-unicode payload patterns from the simulate_attacker_input corpus.
+- A reproducible scanner for known RCE-vulnerability classes in subprocess commands (MCP-SDK-RCE-2026-04-22, CVE-2026-27124, Nginx-MCP RCE 9.8, interpreter inline-eval RCE) plus 5 shell-injection + 3 fullwidth-unicode payload patterns from the simulate_attacker_input corpus.
 - An append-only NDJSON audit log of every isolation decision. Verified tamper-evident signing (Acra-pattern key derivation + rotation + integrated verifier) is on the v0.2 roadmap; v0.1 ships the log unsigned and treats signing as a v0.2 deliverable.
 
 Do **not** use v0.1 if you need a sandbox that actually contains a hostile subprocess at the kernel boundary. For that, the v0.1 descriptor needs to be paired with an enforcement helper. v0.2 ships that helper.
@@ -23,7 +23,7 @@ Do **not** use v0.1 if you need a sandbox that actually contains a hostile subpr
 
 - **Process isolation policy synthesis** — emits landlock (Linux >=5.13) policy descriptors, sandbox-exec (macOS) Scheme profiles, cgroups-v2 specs (memory.max, pids.max, cpu.max). Descriptors only; no syscalls are made.
 - **Network egress allowlist** — default-deny policy with wildcard / exact / suffix / port:* matching. Descriptors only; no nftables / packet-filter integration.
-- **CVE replay suite** — behavioral predicates for known MCP-server RCE vectors. Not exploit payloads — predicates that scan a target command for the vulnerable shape.
+- **CVE replay suite** — behavioral predicates for known MCP-server RCE vectors (`mcp-sdk-rce-2026-04-22`, `cve-2026-27124`, `nginx-mcp-rce-9.8`, `mcp-interpreter-eval-rce`). Not exploit payloads — predicates that scan a target command for the vulnerable shape. The `mcp-interpreter-eval-rce` fixture (added 0.1.1) flags interpreter inline-eval sinks (`node -e`/`--eval`/`-p`, `python -c`, `perl -e`, `ruby -e`, `php -r`, `deno eval`, `bun -e`) that execute arbitrary code without a shell binary or shell metacharacter; the shell-metachar predicate also flags newline/CR command separators as of 0.1.1. Exact-token matching keeps benign launch flags (`--experimental-vm-modules`, `--max-old-space-size`, `--inspect`) out of the detection.
 - **Cross-server canary tokens** — issue tokens, scan downstream stdout / fs-write / network-egress streams for leaks (MCPHunt arXiv 2604.27819 pattern).
 - **NDJSON append-only audit log** — every tool call appended at `$MCP_RCE_GUARD_HOME/audit.log`. 100MB rotation with max 10 backups. v0.1 ships unsigned (no in-process verifier); v0.2 adds Acra-pattern HMAC chain with key derivation, rotation safety and an integrated verifier.
 - **NFKC + zero-width strip + Bidi-block** normalization shared with Pillar 8 (mcp-stdio-shellguard).

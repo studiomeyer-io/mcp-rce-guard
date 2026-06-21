@@ -110,6 +110,7 @@ const SHELL_METACHAR_PATTERNS: readonly { pattern: RegExp; name: string }[] = [
   { pattern: /(^|[^\\])>(?!>)/, name: "stdout redirect" },
   { pattern: /(^|[^\\])>>/, name: "append redirect" },
   { pattern: /(^|[^\\])<(?![<])/, name: "stdin redirect" },
+  { pattern: /[\n\r]/, name: "newline/CR command separator" },
   { pattern: /\$\{[^}]+\}/, name: "${VAR} expansion" },
   { pattern: /\$[A-Za-z_][A-Za-z0-9_]*/, name: "$VAR expansion" }
 ];
@@ -126,6 +127,72 @@ function findShellInvocation(cmd: string): string | null {
     const basename = token.split("/").pop() ?? token;
     if (SHELL_BINARIES.includes(basename)) {
       return token;
+    }
+  }
+  return null;
+}
+
+/**
+ * Language interpreters that accept attacker-controlled source code through an
+ * inline-eval flag. Spawning any of these with such a flag is an arbitrary
+ * code-execution sink that needs NO shell binary and NO shell metacharacter —
+ * so it slips past both the nginx-mcp-rce-9.8 (shell-binary) and the
+ * mcp-sdk-rce-2026-04-22 (shell-metachar) predicates. `node -e '<js>'` is the
+ * canonical example; the same shape exists for python/perl/ruby/php/deno/bun.
+ *
+ * Keyed by interpreter basename → the set of flags that take inline code.
+ * Matching is exact-token (post-split, post-NFKC), never substring, so benign
+ * flags such as `--experimental-vm-modules`, `--enable-source-maps` or
+ * `--max-old-space-size=512` are NOT mistaken for an eval flag.
+ */
+const INTERPRETER_EVAL_FLAGS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ["node", new Set(["-e", "--eval", "-p", "--print"])],
+  ["nodejs", new Set(["-e", "--eval", "-p", "--print"])],
+  ["deno", new Set(["eval"])],
+  ["bun", new Set(["-e", "--eval"])],
+  ["python", new Set(["-c"])],
+  ["python2", new Set(["-c"])],
+  ["python3", new Set(["-c"])],
+  ["perl", new Set(["-e", "-E"])],
+  ["ruby", new Set(["-e"])],
+  ["php", new Set(["-r"])]
+]);
+
+/**
+ * Scan a command for an interpreter inline-eval invocation. Returns a human
+ * readable evidence string when found, else null.
+ *
+ * Heuristic: once a token whose basename is a known interpreter is seen, any
+ * following token that is (or starts with, for `--flag=value` / `-eVALUE`
+ * forms) one of that interpreter's eval flags is a hit. We scope the flag
+ * search to tokens AFTER the interpreter so an unrelated earlier `-e` cannot
+ * be blamed on a later interpreter.
+ */
+function findInterpreterEval(cmd: string): string | null {
+  const tokens = cmd
+    .split(/[\s;|&]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token === undefined) continue;
+    const basename = token.split("/").pop() ?? token;
+    const evalFlags = INTERPRETER_EVAL_FLAGS.get(basename);
+    if (!evalFlags) continue;
+
+    for (let j = i + 1; j < tokens.length; j++) {
+      const next = tokens[j];
+      if (next === undefined) continue;
+      for (const flag of evalFlags) {
+        // Exact `-e`, long `--eval`, `--eval=...`, or glued short `-eCODE`.
+        const glued = flag.startsWith("--")
+          ? next === flag || next.startsWith(`${flag}=`)
+          : next === flag || (flag.length === 2 && next.startsWith(flag) && next.length > 2);
+        if (glued) {
+          return `${basename} ${flag}`;
+        }
+      }
     }
   }
   return null;
@@ -197,6 +264,24 @@ export const BUILT_IN_FIXTURES: readonly CveFixture[] = [
       return {
         status: "pass",
         evidence: "no shell binary invocation detected"
+      };
+    }
+  },
+  {
+    id: "mcp-interpreter-eval-rce",
+    description:
+      "Interpreter inline-eval RCE — the spawned command hands attacker-influenced source code to a language runtime via an inline-eval flag (node -e/--eval/-p, python -c, perl -e, ruby -e, php -r, deno eval, bun -e). This is arbitrary code execution that needs NO shell binary and NO shell metacharacter, so it bypasses both the nginx-mcp-rce-9.8 and mcp-sdk-rce-2026-04-22 predicates. Predicate: no interpreter inline-eval invocation may appear anywhere in the command.",
+    predicate: (cmd) => {
+      const found = findInterpreterEval(cmd);
+      if (found !== null) {
+        return {
+          status: "fail",
+          evidence: `command invokes interpreter inline-eval "${found}" — arbitrary-code-execution sink`
+        };
+      }
+      return {
+        status: "pass",
+        evidence: "no interpreter inline-eval invocation detected"
       };
     }
   }

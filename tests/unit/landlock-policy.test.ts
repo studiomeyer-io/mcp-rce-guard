@@ -47,6 +47,55 @@ describe("buildLandlockPolicy", () => {
     });
     expect(policyAllowsExec(p, "/opt/evil/bin/x")).toBe(false);
   });
+
+  // Path-confusion hardening: a naive startsWith() let a rule for `/usr/bin`
+  // also authorize sibling paths that merely share the textual prefix. Those
+  // are outside the allowed tree and MUST be denied.
+  it("ATTACK BLOCKED: policyAllowsExec denies prefix-sibling directory", () => {
+    const p = buildLandlockPolicy({
+      fsReadOnly: ["/usr/bin"],
+      fsWritable: [],
+      egressAllowlist: []
+    });
+    expect(policyAllowsExec(p, "/usr/binary-evil/x")).toBe(false);
+  });
+
+  it("ATTACK BLOCKED: policyAllowsExec denies prefix-glued path", () => {
+    const p = buildLandlockPolicy({
+      fsReadOnly: ["/usr/bin"],
+      fsWritable: [],
+      egressAllowlist: []
+    });
+    expect(policyAllowsExec(p, "/usr/bin-backdoor")).toBe(false);
+  });
+
+  it("BENIGN ALLOWED: policyAllowsExec still matches the root dir itself", () => {
+    const p = buildLandlockPolicy({
+      fsReadOnly: ["/usr/bin"],
+      fsWritable: [],
+      egressAllowlist: []
+    });
+    expect(policyAllowsExec(p, "/usr/bin")).toBe(true);
+  });
+
+  it("BENIGN ALLOWED: policyAllowsExec matches a real descendant binary", () => {
+    const p = buildLandlockPolicy({
+      fsReadOnly: ["/opt/app/bin"],
+      fsWritable: [],
+      egressAllowlist: []
+    });
+    expect(policyAllowsExec(p, "/opt/app/bin/server")).toBe(true);
+  });
+
+  it("BENIGN ALLOWED: policyAllowsExec treats trailing-slash root identically", () => {
+    const p = buildLandlockPolicy({
+      fsReadOnly: ["/usr/bin/"],
+      fsWritable: [],
+      egressAllowlist: []
+    });
+    expect(policyAllowsExec(p, "/usr/bin/node")).toBe(true);
+    expect(policyAllowsExec(p, "/usr/binary-evil/x")).toBe(false);
+  });
 });
 
 describe("buildSandboxProfile", () => {

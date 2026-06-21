@@ -70,15 +70,37 @@ export function buildLandlockPolicy(profile: IsolationProfile): LandlockPolicyDe
 }
 
 /**
+ * Test whether `binaryPath` lies inside `rulePath` as a true path-tree
+ * descendant (or is the rule path itself). A naive `startsWith` is unsafe
+ * here: a rule for `/usr/bin` would then also authorize `/usr/binary-evil/x`
+ * or `/usr/bin-backdoor`, which share the textual prefix but are NOT inside
+ * the allowed root — a path-confusion authorization bypass. We require the
+ * match to end exactly at the rule path or at a `/` boundary.
+ */
+function isPathWithin(binaryPath: string, rulePath: string): boolean {
+  if (binaryPath === rulePath) {
+    return true;
+  }
+  // Normalize a single trailing slash on the rule so `/usr/bin` and
+  // `/usr/bin/` behave identically, then require the next char to be `/`.
+  const base = rulePath.endsWith("/") ? rulePath.slice(0, -1) : rulePath;
+  return binaryPath.startsWith(`${base}/`);
+}
+
+/**
  * Validate that a path appears in the policy. Used by audit_subprocess to
  * detect when the requested binary lives outside the read-only roots.
+ *
+ * Matching is path-boundary aware (see `isPathWithin`) so a sibling directory
+ * that merely shares a textual prefix with an allowed root cannot inherit its
+ * execute grant.
  */
 export function policyAllowsExec(
   policy: LandlockPolicyDescriptor,
   binaryPath: string
 ): boolean {
   for (const rule of policy.ruleset.rules) {
-    if (binaryPath.startsWith(rule.path) && rule.access.includes("execute")) {
+    if (isPathWithin(binaryPath, rule.path) && rule.access.includes("execute")) {
       return true;
     }
   }
