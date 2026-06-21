@@ -108,7 +108,7 @@ export function createServer(): McpServer {
     {
       title: "Run CVE replay fixtures",
       description:
-        "Replay 2026 MCP CVE fixtures (mcp-sdk-rce-2026-04-22, cve-2026-27124, nginx-mcp-rce-9.8) against a candidate command. Returns overall + per-CVE pass/fail.",
+        "Replay 2026 MCP CVE fixtures (mcp-sdk-rce-2026-04-22, cve-2026-27124, nginx-mcp-rce-9.8, mcp-interpreter-eval-rce) against a candidate command. Returns overall + per-CVE pass/fail.",
       inputSchema: ScanCveReplayArgsSchema.shape,
       annotations: {
         readOnlyHint: true,

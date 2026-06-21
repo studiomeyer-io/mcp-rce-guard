@@ -68,7 +68,8 @@ export type AuditVerdictType = z.infer<typeof AuditVerdict>;
 export const CveIdSchema = z.enum([
   "mcp-sdk-rce-2026-04-22",
   "cve-2026-27124",
-  "nginx-mcp-rce-9.8"
+  "nginx-mcp-rce-9.8",
+  "mcp-interpreter-eval-rce"
 ]);
 export type CveId = z.infer<typeof CveIdSchema>;
 

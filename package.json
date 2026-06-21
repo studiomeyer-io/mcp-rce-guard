@@ -1,6 +1,6 @@
 {
   "name": "mcp-rce-guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "v0.1 policy-synthesis (descriptor-only) for MCP-server RCE defense: landlock/sandbox-exec/cgroups-v2 profile builder + CVE-replay predicates + canary tracker + append-only NDJSON audit log. v0.2 adds native enforcement + verified Acra-pattern audit-log signing.",
   "license": "MIT",
   "author": "Matthias Meyer (StudioMeyer)",
@@ -28,6 +28,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
