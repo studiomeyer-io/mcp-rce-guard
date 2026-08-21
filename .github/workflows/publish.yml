@@ -66,7 +66,19 @@ jobs:
           subject-path: |
             dist/**/*.js
             dist/**/*.d.ts
+      - name: Skip if this version is already on npm
+        id: npmcheck
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$NAME@$VER liegt bereits auf npm - Publish wird uebersprungen"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Publish to npm (Trusted Publishing OIDC, --provenance)
+        if: steps.npmcheck.outputs.already == 'false'
         # No NPM_TOKEN is set. `--provenance` produces an npm-side provenance
         # statement that is cross-verified by the trusted-publisher policy.
         run: npm publish --provenance --access public
