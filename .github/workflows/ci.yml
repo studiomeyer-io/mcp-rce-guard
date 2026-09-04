@@ -40,7 +40,18 @@ jobs:
       - run: npm run build
       # MCP-Inspector: list tools via the spawn-fertige server entry.
       # `--cli` mode runs the inspector headless and exits non-zero on probe
-      # failure. Timeout-wrapped so a hung server fails fast.
+      # failure.
+      #
+      # Das Herunterladen des Inspectors ist ein eigener Schritt, weil die
+      # Zeitgrenze darunter einen HAENGENDEN SERVER fangen soll und sonst den
+      # npx-Download mitmisst. Genau daran ist dieser Schritt am 04.09.2026
+      # zweimal gescheitert (Exit 124), waehrend alle vier Test-Matrixbeine
+      # gruen waren: die 60 s galten fuer Download plus Aufruf zusammen.
+      - name: MCP-Inspector holen
+        # Laedt den Inspector in den npx-Cache. Der Rueckgabewert ist egal:
+        # der Schritt soll nur den Download aus der Zeitmessung darunter
+        # heraushalten, nicht selbst etwas pruefen.
+        run: npx -y @modelcontextprotocol/inspector --version || true
       - name: MCP-Inspector tools/list smoke
         run: |
           timeout 60s npx -y @modelcontextprotocol/inspector --cli \
