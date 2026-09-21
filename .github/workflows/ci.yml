@@ -30,6 +30,9 @@ jobs:
   protocol-conformance:
     needs: test
     runs-on: ubuntu-latest
+    # Ohne Grenze laeuft ein haengender Schritt bis zur Plattform-Grenze von
+    # sechs Stunden (so geschehen in jedem Lauf vom 04.09. bis 13.09.2026).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -51,7 +54,13 @@ jobs:
         # Laedt den Inspector in den npx-Cache. Der Rueckgabewert ist egal:
         # der Schritt soll nur den Download aus der Zeitmessung darunter
         # heraushalten, nicht selbst etwas pruefen.
-        run: npx -y @modelcontextprotocol/inspector --version || true
+        #
+        # `-p <paket> true` laedt das Paket und fuehrt danach nur `true` aus.
+        # Die fruehere Form `inspector --version` kennt der Inspector nicht:
+        # er ignoriert das Flag, startet seine Web-Oberflaeche und wartet
+        # (lokal nachgestellt am 21.09.2026). Jeder Lauf hing daran sechs
+        # Stunden, bis die Plattform ihn abbrach.
+        run: timeout 300s npx -y -p @modelcontextprotocol/inspector true || true
       - name: MCP-Inspector tools/list smoke
         run: |
           timeout 60s npx -y @modelcontextprotocol/inspector --cli \

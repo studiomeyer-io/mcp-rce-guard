@@ -56,6 +56,10 @@ jobs:
         run: npm run build
       - name: Test
         run: npm test
+      # Download getrennt vom Zeittest, wie in ci.yml: sonst misst die
+      # 60-s-Grenze den npx-Download mit.
+      - name: MCP-Inspector holen
+        run: timeout 300s npx -y -p @modelcontextprotocol/inspector true || true
       - name: MCP-Inspector tools/list smoke
         run: |
           timeout 60s npx -y @modelcontextprotocol/inspector --cli \
