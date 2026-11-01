@@ -4,6 +4,13 @@ All notable changes to `mcp-rce-guard` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Dependency maintenance
+
+- Refresh compatible locked SDK, request-parser, URI/IP, Zod4 and test dependencies to their checked patched versions.
+- The checked build and 179 tests pass; the real stdio handshake exposes six tools. All-dependency and production audits report zero findings.
+
 ## [0.1.1] - 2026-06-21
 
 ### Security
